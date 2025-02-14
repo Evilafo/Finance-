@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Market Making</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@150;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e2f;
+            color: #e1e1e6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            width: 100%;
+            background-color: #2b2b3c;
+            padding: 10px 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: sticky;
+            top: 0;
+        }
+
+        header h1 {
+            font-size: 0.8rem;
+            color: /*#76c7c0*/  #73c4fa;
+            margin: 0;
+        }
+
+        #chart-container {
+            width: 71%;
+            height: 250px;
+            background-color: #26263d;
+            border: 1px solid #3e3e5c;
+            border-radius: 8px;
+            margin: 6px 0;
+            position: relative;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .quote-board, .price-table {
+            width: 90%;
+            max-width: 1200px;
+            background-color: #26263d;
+            border: 1px solid #3e3e5c;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .quote-board table, .price-table table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        .quote-board th, .quote-board td, .price-table th, .price-table td {
+            padding: 5px;
+            border: 1px solid #3e3e5c;
+        }
+
+        .quote-board th, .price-table th {
+            background-color: #3e3e5c;
+            color: #e1e1e6;
+        }
+
+        .quote-board td, .price-table td {
+            background-color: #1e1e2f;
+            color: #e1e1e6;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #3e3e5c;
+            border-radius: 5px;
+            margin: 10px 0;
+            height: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            /*background-color: #76c7c0;*/
+            background-color:#73c4fa;
+            width: 100%;
+            transition: width 0.3s;
+        }
+
+        .realization {
+            text-align: center;
+            /* color: #76c7c0; */
+            color: #73c4fa;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .roles {
+            display: flex;
+            gap: 10px;
+        }
+
+        .roles button {
+            background-color: #3e3e5c;
+            color: #e1e1e6;
+            border: none;
+            padding: 5px 15px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .roles button:hover {
+            background-color: /*#76c7c0*/  #73c4fa;
+            color: #1e1e2f;
+        }
+
+        .roles button.active {
+            background-color: /*#76c7c0*/  #73c4fa;
+            color: #1e1e2f;
+        }
+
+        .game-container {
+            width: 90%;
+            max-width: 1200px;
+            background-color: #26263d;
+            border: 1px solid #3e3e5c;
+            border-radius: 8px;
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .market {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+
+        .market button {
+            background-color: #3e3e5c;
+            color: #e1e1e6;
+            border: none;
+            padding: 5px 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        .market button.buy {
+            background-color: #28a745;
+        }
+
+        .market button.sell {
+            background-color: #dc3545;
+        }
+
+        .market button:hover {
+            background-color: /*#76c7c0*/  #73c4fa;
+            color: #1e1e2f;
+        }
+
+        .market .inputs {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .market .inputs input {
+            padding: 5px;
+            border: 1px solid #3e3e5c;
+            border-radius: 5px;
+            background-color: #1e1e2f;
+            color: #e1e1e6;
+            flex: 1;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .pl-display {
+            margin-top: 5px;
+            text-align: center;
+            color: /*#76c7c0*/  #73c4fa;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Simulateur de Market Making</h1>
+    </header>
+
+    <div class="content">
+        <div id="chart-container">
+            <canvas id="pl-chart"></canvas>
+        </div>
+
+        <div class="price-table hidden" id="price-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Offre</th>
+                        <th>Demande</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="bid-price">-</td>
+                        <td id="offer-price">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="quote-board">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dés</th>
+                        <th>Valeur</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dé 1</td>
+                        <td id="dice-1-value">H</td>
+                    </tr>
+                    <tr>
+                        <td>Dé 2</td>
+                        <td id="dice-2-value">H</td>
+                    </tr>
+                    <tr>
+                        <td>Dé 3</td>
+                        <td id="dice-3-value">H</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <div id="realization" class="realization hidden">Réalisation : </div>
+            <div id="pl-display" class="pl-display hidden">P/L : </div>
+        </div>
+
+        <div class="roles">
+            <button id="market-maker-btn">Market Maker</button>
+            <button id="market-participant-btn">Participant au Marché</button>
+        </div>
+
+        <div class="game-container" id="game-container">
+            <div class="market" id="market-maker-controls" class="hidden">
+                <div class="inputs">
+                    <input type="number" id="midpoint" placeholder="Prix médian">
+                    <input type="number" id="spread" placeholder="Spread">
+                </div>
+
+                <button id="submit-market">Soumettre le Marché</button>
+            </div>
+
+            <div class="market" id="market-participant-controls" class="hidden">
+                <div class="inputs">
+                    <input type="number" id="qty" placeholder="Quantité">
+                </div>
+                <button id="buy-btn" class="buy">Acheter</button>
+                <button id="sell-btn" class="sell">Vendre</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const marketMakerBtn = document.getElementById("market-maker-btn");
+            const marketParticipantBtn = document.getElementById("market-participant-btn");
+            const gameContainer = document.getElementById("game-container");
+            const marketMakerControls = document.getElementById("market-maker-controls");
+            const marketParticipantControls = document.getElementById("market-participant-controls");
+            const realization = document.getElementById("realization");
+            const progressBar = document.getElementById("progress-bar");
+            const priceTable = document.getElementById("price-table");
+            const bidPrice = document.getElementById("bid-price");
+            const offerPrice = document.getElementById("offer-price");
+            const qtyInput = document.getElementById("qty");
+            const buyBtn = document.getElementById("buy-btn");
+            const sellBtn = document.getElementById("sell-btn");
+            const plDisplay = document.getElementById("pl-display");
+
+            let action = null;
+            let lockedPrice = null;
+            let lockedQty = null;
+
+            marketMakerBtn.addEventListener("click", () => {
+                gameContainer.style.display = "flex";
+                marketMakerControls.classList.remove("hidden");
+                marketParticipantControls.classList.add("hidden");
+                priceTable.classList.add("hidden");
+                marketMakerBtn.classList.add("active");
+                marketParticipantBtn.classList.remove("active");
+            });
+
+            marketParticipantBtn.addEventListener("click", () => {
+                gameContainer.style.display = "flex";
+                marketParticipantControls.classList.remove("hidden");
+                marketMakerControls.classList.add("hidden");
+                priceTable.classList.remove("hidden");
+                updateBidOffer();
+                marketParticipantBtn.classList.add("active");
+                marketMakerBtn.classList.remove("active");
+            });
+
+            buyBtn.addEventListener("click", () => {
+                action = "buy";
+                lockedPrice = parseInt(offerPrice.textContent);
+                lockedQty = parseInt(qtyInput.value) || 0;
+                buyBtn.disabled = true;
+                sellBtn.disabled = true;
+
+                const purchaseInfo = document.createElement("div");
+                purchaseInfo.id = "purchase-info";
+                purchaseInfo.style.textAlign = "center";
+                purchaseInfo.style.color = "#73c4fa";
+                purchaseInfo.style.fontWeight = "bold";
+                purchaseInfo.textContent = `Acheté ${lockedQty} @ Offre: ${lockedPrice}`;
+                priceTable.parentNode.insertBefore(purchaseInfo, priceTable);
+            });
+
+            sellBtn.addEventListener("click", () => {
+                action = "sell";
+                lockedPrice = parseInt(bidPrice.textContent);
+                lockedQty = parseInt(qtyInput.value) || 0;
+                buyBtn.disabled = true;
+                sellBtn.disabled = true;
+
+                const saleInfo = document.createElement("div");
+                saleInfo.id = "purchase-info";
+                saleInfo.style.textAlign = "center";
+                saleInfo.style.color = "#dc3545";
+                saleInfo.style.fontWeight = "bold";
+                saleInfo.textContent = `Vendu ${lockedQty} @ Offre: ${lockedPrice}`;
+                priceTable.parentNode.insertBefore(saleInfo, priceTable);
+            });
+
+            function resetPurchaseState() {
+                buyBtn.disabled = false;
+                sellBtn.disabled = false;
+                lockedPrice = null;
+                lockedQty = null;
+                action = null;
+
+                const purchaseInfo = document.getElementById("purchase-info");
+                if (purchaseInfo) {
+                    purchaseInfo.remove();
+                }
+            }
+
+            const ctx = document.getElementById("pl-chart").getContext("2d");
+            let cumulativePL = 0;
+            const plData = {
+                labels: [],
+                datasets: [{
+                    label: "P/L Cumulés (Profit et perte) ",
+                    data: [],
+                    borderColor: "#73c4fa",
+                    backgroundColor: "rgba(118, 199, 192, 0.2)",
+                    borderWidth: 2,
+                    tension: 0.1,
+                }]
+            };
+
+            const plChart = new Chart(ctx, {
+                type: "line",
+                data: plData,
+                options: {
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Trades",
+                                color: "#e1e1e6",
+                            },
+                            ticks: {
+                                color: "#e1e1e6",
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: "P/L Cumulés (Profit et perte)",
+                                color: "#e1e1e6",
+                            },
+                            ticks: {
+                                color: "#e1e1e6",
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: "#e1e1e6",
+                            }
+                        }
+                    }
+                }
+            });
+
+            function updatePLChart(pl) {
+                cumulativePL += pl;
+                const tradeCount = plData.labels.length + 1;
+                plData.labels.push(`Trade ${tradeCount}`);
+                plData.datasets[0].data.push(cumulativePL);
+                plChart.update();
+            }
+
+            let storedDiceValues = [];
+
+            function updateDiceValues() {
+                const dice1 = document.getElementById("dice-1-value");
+                const dice2 = document.getElementById("dice-2-value");
+                const dice3 = document.getElementById("dice-3-value");
+
+                let diceValues = [
+                    Math.random() > 0.5 ? Math.ceil(Math.random() * 6) : "H",
+                    Math.random() > 0.5 ? Math.ceil(Math.random() * 6) : "H",
+                    Math.random() > 0.5 ? Math.ceil(Math.random() * 6) : "H",
+                ];
+
+                if (!diceValues.includes("H")) {
+                    const randomIndex = Math.floor(Math.random() * 3);
+                    diceValues[randomIndex] = "H";
+                }
+
+                [dice1.textContent, dice2.textContent, dice3.textContent] = diceValues;
+                storedDiceValues = diceValues;
+            }
+
+            let storedBid = null;
+            let storedOffer = null;
+
+            function updateBidOffer() {
+                const bid = Math.max(3, Math.min(18, Math.ceil(Math.random() * 16 + 2)));
+                const offer = Math.min(18, bid + 2 + Math.floor(Math.random() * 2));
+
+                bidPrice.textContent = bid;
+                offerPrice.textContent = offer;
+
+                storedBid = bid;
+                storedOffer = offer;
+            }
+
+            function updateRealization() {
+                const realizationValue = storedDiceValues.reduce((acc, value) => {
+                    if (value === "H") return acc + Math.ceil(Math.random() * 6);
+                    return acc + parseFloat(value);
+                }, 0);
+
+                realization.textContent = `Réalisation : ${realizationValue}`;
+                realization.classList.remove("hidden");
+
+                const isMarketMaker = marketMakerBtn.classList.contains("active");
+                const isMarketParticipant = marketParticipantBtn.classList.contains("active");
+
+                if (isMarketMaker && window.marketResult) {
+                    const { buyers, sellers, bid, offer, spread } = window.marketResult;
+                    const netQty = sellers - buyers;
+                    const matchedQty = Math.min(buyers, sellers);
+                    const spreadCollected = spread * matchedQty;
+                    const realizedPL = netQty * (realizationValue - (netQty > 0 ? bid : offer));
+                    const totalPL = spreadCollected + realizedPL;
+
+                    plDisplay.textContent = `P/L : ${totalPL.toFixed(2)} $ (Spread Collecté : ${spreadCollected.toFixed(2)}, P/L Réalisé : ${realizedPL.toFixed(2)} $ )`;
+                    plDisplay.classList.remove("hidden");
+
+                    updatePLChart(totalPL);
+                    window.marketResult = null;
+                }
+
+                if (isMarketParticipant && action && lockedPrice !== null && lockedQty !== null) {
+                    const pl = action === "buy"
+                        ? (realizationValue - lockedPrice) * lockedQty
+                        : (lockedPrice - realizationValue) * lockedQty;
+
+                    plDisplay.textContent = `P/L : ${pl.toFixed(2)}$ `;
+                    plDisplay.classList.remove("hidden");
+
+                    updatePLChart(pl);
+                    resetPurchaseState();
+                }
+            }
+
+            function resetProgressBar() {
+                progressBar.style.width = "100%";
+                let progress = 100;
+
+                const interval = setInterval(() => {
+                    progress -= 6.67;
+                    progressBar.style.width = `${progress}%`;
+
+                    if (progress <= 0) {
+                        clearInterval(interval);
+                        updateRealization();
+                        updateDiceValues();
+                        updateBidOffer();
+                        resetPurchaseState();
+                        resetProgressBar();
+                    }
+                }, 1000);
+            }
+
+            function initializeGame() {
+                const dice1 = document.getElementById("dice-1-value");
+                const dice2 = document.getElementById("dice-2-value");
+                const dice3 = document.getElementById("dice-3-value");
+
+                const initialDiceValues = [
+                    Math.ceil(Math.random() * 6),
+                    Math.ceil(Math.random() * 6),
+                    Math.ceil(Math.random() * 6),
+                ];
+
+                [dice1.textContent, dice2.textContent, dice3.textContent] = ["H", "H", "H"];
+                storedDiceValues = initialDiceValues;
+                updateBidOffer();
+            }
+
+            let storedMidpoint = null;
+            let storedSpread = null;
+
+            function updateMarket(midpoint, spread) {
+                const bid = Math.max(3, midpoint - spread / 2);
+                const offer = Math.min(18, midpoint + spread / 2);
+
+                bidPrice.textContent = bid.toFixed(2);
+                offerPrice.textContent = offer.toFixed(2);
+
+                storedMidpoint = midpoint;
+                storedSpread = spread;
+            }
+
+            document.getElementById("submit-market").addEventListener("click", () => {
+                const midpoint = parseFloat(document.getElementById("midpoint").value) || 0;
+                const spread = parseFloat(document.getElementById("spread").value) || 0;
+
+                if (midpoint <= 0 || spread <= 0) {
+                    alert("Veuillez fournir des valeurs valides pour le midpoint et le spread.");
+                    return;
+                }
+
+                const bid = Math.max(3, midpoint - spread / 2);
+                const offer = Math.min(18, midpoint + spread / 2);
+
+                bidPrice.textContent = bid.toFixed(2);
+                offerPrice.textContent = offer.toFixed(2);
+
+                storedMidpoint = midpoint;
+                storedSpread = spread;
+
+                const expectedDiceValues = storedDiceValues.map(value => (value === "H" ? 3.5 : parseFloat(value)));
+                const expectedOutcome = expectedDiceValues.reduce((acc, value) => acc + value, 0);
+
+                const edgeBuy = Math.max(0, Math.min(1, (offer - expectedOutcome) / spread));
+                const edgeSell = Math.max(0, Math.min(1, (expectedOutcome - bid) / spread));
+
+                const nBuy = 100;
+                const nSell = 100;
+                const buyers = Math.round(edgeSell * nBuy);
+                const sellers = Math.round(edgeBuy * nSell);
+
+                const resultDiv = document.getElementById("market-result");
+                const resultText = `Acheté ${buyers} @ Offre : ${offer.toFixed(2)}$, Vendu ${sellers}$ @ Bid : ${bid.toFixed(2)}$`;
+                if (!resultDiv) {
+                    const newResultDiv = document.createElement("div");
+                    newResultDiv.id = "market-result";
+                    newResultDiv.style.textAlign = "center";
+                    newResultDiv.style.color = "#73c4fa";
+                    newResultDiv.style.fontWeight = "bold";
+                    newResultDiv.textContent = resultText;
+                    priceTable.parentNode.insertBefore(newResultDiv, priceTable.nextSibling);
+                } else {
+                    resultDiv.textContent = resultText;
+                }
+
+                window.marketResult = { buyers, sellers, bid, offer, spread };
+            });
+
+            initializeGame();
+            resetProgressBar();
+        });
+    </script>
+</body>
+</html>
