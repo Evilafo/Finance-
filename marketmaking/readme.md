@@ -79,3 +79,8 @@ Le graphique en haut de la page affiche les **profits et pertes cumulés** pour 
 ## Licences
 
 Le code est sous licence MIT. Vous pouvez l'utiliser librement à des fins personnelles et éducatives.
+
+
+
+![image](https://github.com/user-attachments/assets/0dc12d57-b86d-4e38-9ef6-9e249dd9a8e9)
+
